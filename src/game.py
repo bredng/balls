@@ -1,7 +1,12 @@
 import random
+import math
 
 import comms
 from object_types import ObjectTypes
+
+def print2(x):
+    import sys
+    print(x, file=sys.stderr)
 
 
 class Game:
@@ -18,6 +23,7 @@ class Game:
     def __init__(self):
         tank_id_message: dict = comms.read_message()
         self.tank_id = tank_id_message["message"]["your-tank-id"]
+        self.enemy_tank_id = tank_id_message["message"]["enemy-tank-id"]
 
         self.current_turn_message = None
 
@@ -89,9 +95,56 @@ class Game:
         """
 
         # Write your code here... For demonstration, this bot just shoots randomly every turn.
+        
+        self.read_next_turn_data()
 
+
+        # Distance from centre of tank to the edge of tank = 9.5 (tank coordinate is the centre of the tank)
+
+        # Check if tank is close to boundary
+        # tolerance = 9.5 + 
+
+        #if distance to other tank is less than tolerance, wiggle and shoot in a circle
+
+        #if not, move to other tanks position
+
+        self.angle = self.calculate_angle()
+        print(self.tank_id)
+        print2(self.angle)
+        print2("U CANT MISS THIS BRED U SHORT")
+        
         comms.post_message({
-            "shoot": random.uniform(0, random.randint(1, 360))
+            "shoot": self.angle,
+            #"path": [self.objects[self.enemy_tank_id]["position"][0],self.objects[self.enemy_tank_id]["position"][1]]
         })
 
 
+    def calculate_angle(self, first_object_id, second_object_id) -> int:
+        enemy_tank_loc = self.objects[self.enemy_tank_id]["position"]
+        my_tank_loc = self.objects[self.tank_id]["position"]
+        print2(my_tank_loc)
+
+        y_dist = enemy_tank_loc[1] - my_tank_loc[1] # y coordinates
+        x_dist = enemy_tank_loc[0] - my_tank_loc[0] # x coordinates
+        print2([x_dist,y_dist])
+        print2(enemy_tank_loc)
+        
+
+        if x_dist == 0:
+            if y_dist > 0:
+                return 90
+            else:
+                return 270
+            
+        if y_dist == 0:
+            if x_dist > 0:
+                return 0
+            else:
+                return 180
+
+        angle = math.degrees(math.atan2(y_dist, x_dist))
+
+        if angle < 0:
+            angle += 360
+        
+        return angle
