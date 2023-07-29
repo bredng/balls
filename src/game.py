@@ -25,6 +25,8 @@ class Game:
         self.tank_id = tank_id_message["message"]["your-tank-id"]
         self.enemy_tank_id = tank_id_message["message"]["enemy-tank-id"]
 
+        self.last_angle_moved = None
+
         self.current_turn_message = None
 
         # We will store all game objects here
@@ -98,7 +100,6 @@ class Game:
         
         self.read_next_turn_data()
 
-
         # Distance from centre of tank to the edge of tank = 9.5 (tank coordinate is the centre of the tank)
 
         # Check if tank is close to boundary
@@ -108,27 +109,50 @@ class Game:
 
         #if not, move to other tanks position
 
-        self.angle = self.calculate_angle()
-        print(self.tank_id)
-        print2(self.angle)
-        print2("U CANT MISS THIS BRED U SHORT")
-        
-        comms.post_message({
-            "shoot": self.angle,
-            #"path": [self.objects[self.enemy_tank_id]["position"][0],self.objects[self.enemy_tank_id]["position"][1]]
-        })
+        distances = self.calculate_distance()
 
+        if distances[0] > 200:      
 
-    def calculate_angle(self, first_object_id, second_object_id) -> int:
+            # angle = self.calculate_angle()
+            
+            comms.post_message({
+                "path": self.objects[self.enemy_tank_id]["position"]
+            })
+        else:
+            
+            angle = self.calculate_next_move_circle(self.last_angle_moved)
+
+            self.toShoot = self.calculate_angle()
+
+            self.last_angle_moved = angle
+
+            comms.post_message({
+                "shoot": self.toShoot,
+                "move": angle
+            })
+
+    def calculate_distance(self):
         enemy_tank_loc = self.objects[self.enemy_tank_id]["position"]
         my_tank_loc = self.objects[self.tank_id]["position"]
-        print2(my_tank_loc)
+        # print2(my_tank_loc)
 
         y_dist = enemy_tank_loc[1] - my_tank_loc[1] # y coordinates
         x_dist = enemy_tank_loc[0] - my_tank_loc[0] # x coordinates
-        print2([x_dist,y_dist])
-        print2(enemy_tank_loc)
-        
+
+        return [math.sqrt(x_dist**2+y_dist**2), x_dist, y_dist]
+
+
+    def calculate_angle(self) -> int:
+        # enemy_tank_loc = self.objects[self.enemy_tank_id]["position"]
+        # my_tank_loc = self.objects[self.tank_id]["position"]
+        # print2(my_tank_loc)
+
+        # y_dist = enemy_tank_loc[1] - my_tank_loc[1] # y coordinates
+        # x_dist = enemy_tank_loc[0] - my_tank_loc[0] # x coordinates
+
+        distances = self.calculate_distance()
+        x_dist = distances[1]
+        y_dist = distances[2]
 
         if x_dist == 0:
             if y_dist > 0:
@@ -148,3 +172,20 @@ class Game:
             angle += 360
         
         return angle
+
+
+    def calculate_next_move_circle(self, last_angle_moved) -> int:
+        my_tank_loc = self.objects[self.tank_id]["position"]
+        enemy_tank_loc = self.objects[self.enemy_tank_id]["position"]
+
+        if last_angle_moved is None:
+
+            gradient = (enemy_tank_loc[1] - my_tank_loc[1])/(enemy_tank_loc[0] - my_tank_loc[0])
+            tangent = -1/gradient
+
+            angle = math.degrees(math.atan(tangent))
+
+            return angle
+        else:
+            angle = int(self.calculate_angle())
+            return random.randint(angle-90,angle+90) % 360
